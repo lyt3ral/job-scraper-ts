@@ -1,8 +1,8 @@
 # job-scraper-ts
 
-A standalone Workday job scraper and AI-powered analyzer pipeline built with Bun and TypeScript.
+A serverless-ready Workday job scraper and AI-powered analyzer pipeline built with Bun and TypeScript.
 
-Scrapes job listings from Workday career portals and stores them in a local SQLite database, then uses Google Gemini (via the AI SDK) to extract structured metadata from each job description.
+Scrapes job listings from Workday career portals and stores them via Turso (Serverless SQLite) or locally, then uses Google Gemini (via the AI SDK) to extract structured metadata from each job description.
 
 ---
 
@@ -26,10 +26,15 @@ bun install
 Copy or create a `.env` file in the project root:
 
 ```bash
-GOOGLE_GENERATIVE_AI_API_KEY="your-key-here"
+GOOGLE_GENERATIVE_AI_API_KEY="your-gemini-key-here"
+
+# (Optional) For remote Turso DB. Defaults to local "file:jobs.sqlite"
+TURSO_DATABASE_URL="libsql://your-db-name.turso.io"
+TURSO_AUTH_TOKEN="your-turso-token"
 ```
 
-> Get a free key at https://aistudio.google.com/app/apikey
+> Get a free Gemini key at https://aistudio.google.com/app/apikey
+> Get a free Turso serverless database at https://turso.tech
 
 ---
 
@@ -79,7 +84,7 @@ bun run analyze
 
 ## Database
 
-Jobs are stored in `jobs.sqlite` (auto-created on first run). The schema:
+Jobs are stored via `@libsql/client`. By default, it will save locally to `jobs.sqlite` (auto-created on first run). If you set `TURSO_DATABASE_URL`, it will connect to a remote Turso serverless database making it perfect for Cron/Serverless environments like Vercel or GitHub Actions. The schema:
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -120,7 +125,7 @@ job-scraper-ts/
 
 - **Runtime**: [Bun](https://bun.sh)
 - **Language**: TypeScript
-- **Database**: SQLite via `bun:sqlite` (built-in, zero config)
+- **Database**: Turso SQLite via `@libsql/client` (Remote or Local)
 - **HTTP scraping**: Bun's built-in `fetch` + [jsdom](https://github.com/jsdom/jsdom)
 - **AI analysis**: [Vercel AI SDK](https://sdk.vercel.ai/) + `@ai-sdk/google` (Gemma 3 27B)
 - **Rate limiting**: [Bottleneck](https://github.com/SGrondin/bottleneck)

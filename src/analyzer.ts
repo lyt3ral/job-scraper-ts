@@ -79,7 +79,8 @@ ${job.description.slice(0, 3000)}`;
 
     const parsed = JSON.parse(cleanJSON);
 
-    db.prepare(`
+    await db.execute({
+      sql: `
       UPDATE jobs 
       SET isAnalyzed = 1,
           yearsExperienceRequired = ?,
@@ -87,13 +88,15 @@ ${job.description.slice(0, 3000)}`;
           skillsNeeded = ?,
           qualifications = ?
       WHERE id = ?
-    `).run(
-      parsed.yearsExperienceRequired ?? null,
-      parsed.isCsRole === true ? 1 : 0,
-      JSON.stringify(parsed.skillsNeeded || []),
-      JSON.stringify(parsed.qualifications || []),
-      job.id
-    );
+    `,
+      args: [
+        parsed.yearsExperienceRequired ?? null,
+        parsed.isCsRole === true ? 1 : 0,
+        JSON.stringify(parsed.skillsNeeded || []),
+        JSON.stringify(parsed.qualifications || []),
+        job.id
+      ]
+    });
 
     return true;
   } catch (err: any) {
@@ -119,16 +122,15 @@ ${job.description.slice(0, 3000)}`;
 // Main long-running loop
 // ─────────────────────────────────────────────────────────────────────────────
 async function main() {
-  initDb();
+  await initDb();
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     console.error("Missing GOOGLE_GENERATIVE_AI_API_KEY in .env");
     process.exit(1);
   }
 
-  const totalUnanalyzed = (
-    db.query(`SELECT count(*) as c FROM jobs WHERE isAnalyzed = 0`).get() as { c: number }
-  ).c;
+  const totalUnanalyzedRes = await db.execute(`SELECT count(*) as c FROM jobs WHERE isAnalyzed = 0`);
+  const totalUnanalyzed = totalUnanalyzedRes.rows[0].c as number;
 
   const maxRequestsThisRun = config.RPD;
 
@@ -155,15 +157,13 @@ async function main() {
       break;
     }
 
-    const job = db
-      .query(`SELECT id, title, description FROM jobs WHERE isAnalyzed = 0 LIMIT 1`)
-      .get() as { id: string; title: string; description: string } | null;
+    const jobRes = await db.execute(`SELECT id, title, description FROM jobs WHERE isAnalyzed = 0 LIMIT 1`);
+    const job = jobRes.rows[0] as unknown as { id: string; title: string; description: string } | undefined;
 
     if (!job) break;
 
-    const remaining = (
-      db.query(`SELECT count(*) as c FROM jobs WHERE isAnalyzed = 0`).get() as { c: number }
-    ).c;
+    const remainingRes = await db.execute(`SELECT count(*) as c FROM jobs WHERE isAnalyzed = 0`);
+    const remaining = remainingRes.rows[0].c as number;
 
     process.stdout.write(
       `[req ${requestCount + 1}] Processing: ${job.title.slice(0, 45).padEnd(45)} (${remaining} left) ... `
@@ -183,16 +183,15 @@ async function main() {
       // but let's leave it un-analyzed in this simple setup so you can fix and retry
       console.log(`❌ failed (${elapsed}s)`);
       // Optional: Update to failed state to avoid infinite loops on syntax errors
-      db.prepare(`UPDATE jobs SET isAnalyzed = -1 WHERE id = ?`).run(job.id);
+      await db.execute({ sql: `UPDATE jobs SET isAnalyzed = -1 WHERE id = ?`, args: [job.id] });
     }
 
     // Pace between requests to strictly respect the 15,000 TPM limit
     await sleep(config.minTimeBetweenMs);
   }
 
-  const finalRemaining = (
-    db.query(`SELECT count(*) as c FROM jobs WHERE isAnalyzed = 0`).get() as { c: number }
-  ).c;
+  const finalRemainingRes = await db.execute(`SELECT count(*) as c FROM jobs WHERE isAnalyzed = 0`);
+  const finalRemaining = finalRemainingRes.rows[0].c as number;
 
   console.log(`\n✅ Analysis run complete.`);
   console.log(`   Requests used  : ${requestCount}`);

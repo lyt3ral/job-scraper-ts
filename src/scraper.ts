@@ -238,10 +238,18 @@ async function scrapePortal(portalURL: string) {
         }
 
         // Duplicate check against DB
-        const existingJob = db.query("SELECT id, isAnalyzed FROM jobs WHERE url = $url").get({ $url: jobUrl }) as { id: string; isAnalyzed: number } | null;
+        const existingJobResult = await db.execute({
+          sql: "SELECT id, isAnalyzed FROM jobs WHERE url = ?",
+          args: [jobUrl]
+        });
+        const existingJob = existingJobResult.rows[0] as unknown as { id: string; isAnalyzed: number } | undefined;
+        
         if (existingJob) {
           log(portalTag, `  → SKIP (DB duplicate): already in DB (isAnalyzed=${existingJob.isAnalyzed}), refreshing postedOn`);
-          db.prepare(`UPDATE jobs SET postedOn = ?, updatedAt = CURRENT_TIMESTAMP WHERE url = ?`).run(postedOn, jobUrl);
+          await db.execute({
+            sql: `UPDATE jobs SET postedOn = ?, updatedAt = CURRENT_TIMESTAMP WHERE url = ?`,
+            args: [postedOn, jobUrl]
+          });
           totalSkippedDuplicate++;
           totalSaved++;
           continue;
@@ -260,13 +268,16 @@ async function scrapePortal(portalURL: string) {
         log(portalTag, `  → Description extracted (${details.jobDescription.length} chars, source: ${details.source})`);
 
         // Insert
-        db.prepare(`
+        await db.execute({
+          sql: `
           INSERT INTO jobs (id, title, location, url, postedOn, company, portal, description)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(url) DO UPDATE SET 
             updatedAt=CURRENT_TIMESTAMP,
             postedOn=excluded.postedOn
-        `).run(createId(), title, location, jobUrl, postedOn, company, portal, details.jobDescription);
+        `,
+          args: [createId(), title, location, jobUrl, postedOn, company, portal, details.jobDescription]
+        });
 
         log(portalTag, `  → ✅ Saved: "${title}"`);
         totalSaved++;
@@ -291,7 +302,7 @@ async function scrapePortal(portalURL: string) {
 }
 
 async function main() {
-  initDb();
+  await initDb();
 
   console.log(`\n${"═".repeat(60)}`);
   console.log(`  Workday Scraper`);
@@ -308,7 +319,8 @@ async function main() {
   await Promise.all(tasks);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  const total = (db.query("SELECT count(*) as c FROM jobs").get() as { c: number }).c;
+  const totalRes = await db.execute("SELECT count(*) as c FROM jobs");
+  const total = totalRes.rows[0].c as number;
 
   console.log(`\n${"═".repeat(60)}`);
   console.log(`  Scraping completed in ${elapsed}s`);

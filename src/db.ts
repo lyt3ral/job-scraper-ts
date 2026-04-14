@@ -24,6 +24,7 @@ export async function initDb() {
       isCsRole INTEGER,
       skillsNeeded TEXT,
       qualifications TEXT,
+      isNotified INTEGER DEFAULT 0,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -32,4 +33,11 @@ export async function initDb() {
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_isAnalyzed ON jobs(isAnalyzed);
   `);
+  
+  // Safe migration for existing DBs
+  try {
+    await db.execute(`ALTER TABLE jobs ADD COLUMN isNotified INTEGER DEFAULT 0;`);
+  } catch (err) {
+    // Column likely already exists, ignore
+  }
 }

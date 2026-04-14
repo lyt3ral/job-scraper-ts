@@ -2,6 +2,7 @@
   "name": "job-scraper-ts",
   "type": "module",
   "private": true,
+  "description": "A serverless-ready AI job scraper using Bun, Gemini, and Turso",
   "keywords": [
     "typescript",
     "bun",
@@ -9,7 +10,9 @@
     "workday",
     "ai",
     "gemini",
-    "sqlite"
+    "turso",
+    "serverless",
+    "cron"
   ],
   "scripts": {
     "scrape": "bun run src/scraper.ts",
@@ -25,6 +28,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
+    "@libsql/client": "^0.17.2",
     "@paralleldrive/cuid2": "^3.3.0",
     "ai": "^6.0.116",
     "bottleneck": "^2.19.5",

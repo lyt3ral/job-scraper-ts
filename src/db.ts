@@ -1,12 +1,15 @@
-import { Database } from "bun:sqlite";
+import { createClient } from "@libsql/client";
 
-export const db = new Database("jobs.sqlite", { create: true });
+const url = process.env.TURSO_DATABASE_URL || "file:jobs.sqlite";
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-export function initDb() {
-  db.run(`PRAGMA journal_mode = WAL;`);
-  db.run(`PRAGMA busy_timeout = 5000;`);
-  
-  db.run(`
+export const db = createClient({
+  url,
+  authToken,
+});
+
+export async function initDb() {
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -26,7 +29,7 @@ export function initDb() {
     );
   `);
   
-  db.run(`
+  await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_isAnalyzed ON jobs(isAnalyzed);
   `);
 }

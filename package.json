@@ -16,7 +16,8 @@
   ],
   "scripts": {
     "scrape": "bun run src/scraper.ts",
-    "analyze": "bun run src/analyzer.ts"
+    "analyze": "bun run src/analyzer.ts",
+    "notify": "bun run src/notify.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.10",

@@ -1,5 +1,5 @@
 {
-  "name": "scraper-ts",
+  "name": "job-scraper-ts",
   "module": "index.ts",
   "type": "module",
   "private": true,

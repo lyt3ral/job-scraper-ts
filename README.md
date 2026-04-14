@@ -1,4 +1,4 @@
-# scraper-ts
+# job-scraper-ts
 
 A standalone Workday job scraper and AI-powered analyzer pipeline built with Bun and TypeScript.
 
@@ -102,7 +102,7 @@ Jobs are stored in `jobs.sqlite` (auto-created on first run). The schema:
 ## Project Structure
 
 ```
-scraper-ts/
+job-scraper-ts/
 ├── src/
 │   ├── scraper.ts      # Phase 1: Workday portal scraper
 │   ├── analyzer.ts     # Phase 2: AI metadata extractor

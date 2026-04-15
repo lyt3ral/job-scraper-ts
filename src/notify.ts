@@ -3,10 +3,14 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-// Helper to escape characters for Telegram MarkdownV2
-function escapeMarkdownV2(text: string) {
+// Helper to escape characters for HTML
+function escapeHTML(text: string) {
   if (!text) return "";
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+  return text.replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
 }
 
 async function sendTelegramMessage(message: string): Promise<{ success: boolean; retryAfter?: number }> {
@@ -27,7 +31,7 @@ async function sendTelegramMessage(message: string): Promise<{ success: boolean;
       body: JSON.stringify({
         chat_id: chatId,
         text: message,
-        parse_mode: "MarkdownV2",
+        parse_mode: "HTML",
         disable_web_page_preview: true,
       }),
     });
@@ -41,7 +45,7 @@ async function sendTelegramMessage(message: string): Promise<{ success: boolean;
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`Telegram API Error: ${response.status} - ${errText}`);
+      console.error(`Telegram API Error: ${response.status} - ${errText} (Message sent: ${message.slice(0,100)}...)`);
       return { success: false };
     }
     return { success: true };
@@ -71,7 +75,7 @@ async function main() {
   const BATCH_SIZE = 10;
   for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
     const chunk = jobs.slice(i, i + BATCH_SIZE);
-    let consolidatedMessage = `🚀 *New Jobs Batch (${i / BATCH_SIZE + 1})* 🚀\n\n`;
+    let consolidatedMessage = `🚀 <b>New Jobs Batch (${i / BATCH_SIZE + 1})</b> 🚀\n\n`;
 
     for (const job of chunk) {
       const { title, company, url, yearsExperienceRequired, skillsNeeded } = job;
@@ -80,7 +84,7 @@ async function main() {
       try {
         const skills = JSON.parse(skillsNeeded);
         if (Array.isArray(skills) && skills.length > 0) {
-          skillsStr = skills.slice(0, 3).join(", "); // Reduced to 3 for brevity in batching
+          skillsStr = skills.slice(0, 3).join(", ");
         }
       } catch (e) {}
 
@@ -88,8 +92,8 @@ async function main() {
           ? `${yearsExperienceRequired} Years` 
           : "Not specified";
 
-      consolidatedMessage += `🏢 *${escapeMarkdownV2(company)}* \\- [${escapeMarkdownV2(title)}](${url})\n`;
-      consolidatedMessage += `⏳ Exp: ${escapeMarkdownV2(String(expText))} | 🛠 ${escapeMarkdownV2(skillsStr)}\n\n`;
+      consolidatedMessage += `🏢 <b>${escapeHTML(company)}</b> - <a href="${url}">${escapeHTML(title)}</a>\n`;
+      consolidatedMessage += `⏳ Exp: ${escapeHTML(String(expText))} | 🛠 ${escapeHTML(skillsStr)}\n\n`;
     }
 
     const { success, retryAfter } = await sendTelegramMessage(consolidatedMessage.trim());
@@ -97,19 +101,16 @@ async function main() {
     if (success) {
       console.log(`✅ Notified batch of ${chunk.length} jobs.`);
       const ids = chunk.map(j => j.id);
-      // Update all IDs in this batch as notified
       for (const id of ids) {
         await db.execute({
           sql: "UPDATE jobs SET isNotified = 1 WHERE id = ?",
           args: [id],
         });
       }
-      // Small pause between batches
       await new Promise((r) => setTimeout(r, 2000));
     } else if (retryAfter) {
       console.log(`⏳ Waiting ${retryAfter}s for rate limit...`);
       await new Promise((r) => setTimeout(r, (retryAfter + 1) * 1000));
-      // Re-try this batch index is not implemented for simplicity, it will be picked up next run.
       i -= BATCH_SIZE; 
     } else {
       console.log(`❌ Failed to notify batch starting at index ${i}`);

@@ -27,7 +27,7 @@ jobs:
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-        run: bun run scrape -search "software" -posted "1"
+        run: bun run scrape -search "software" -location "India" -posted "1"
 
       - name: Run Greenhouse Scraper
         env:

@@ -6,6 +6,17 @@ on:
     - cron: '0 0 * * *'
   # Allow manual trigger from the GitHub Actions UI
   workflow_dispatch:
+    inputs:
+      phase:
+        description: 'Phase to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - scrape
+          - analyze
+          - notify
 
 jobs:
   run-pipeline:
@@ -24,18 +35,21 @@ jobs:
         run: bun install
 
       - name: Run Workday Scraper
+        if: github.event.inputs.phase == 'all' || github.event.inputs.phase == 'scrape' || github.event_name == 'schedule'
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: bun run scrape -search "software" -location "India" -posted "1"
 
       - name: Run Greenhouse Scraper
+        if: github.event.inputs.phase == 'all' || github.event.inputs.phase == 'scrape' || github.event_name == 'schedule'
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: bun run scrape:gh -search "Software Engineer" -location "India" -days 1
 
       - name: Run AI Analyzer
+        if: github.event.inputs.phase == 'all' || github.event.inputs.phase == 'analyze' || github.event_name == 'schedule'
         env:
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
@@ -43,6 +57,7 @@ jobs:
         run: bun run analyze
 
       - name: Telegram Notifications
+        if: github.event.inputs.phase == 'all' || github.event.inputs.phase == 'notify' || github.event_name == 'schedule'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

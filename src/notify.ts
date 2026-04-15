@@ -9,13 +9,13 @@ function escapeMarkdownV2(text: string) {
   return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
-async function sendTelegramMessage(message: string) {
+async function sendTelegramMessage(message: string): Promise<{ success: boolean; retryAfter?: number }> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId) {
     console.error("Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID.");
-    return false;
+    return { success: false };
   }
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -32,15 +32,22 @@ async function sendTelegramMessage(message: string) {
       }),
     });
 
+    if (response.status === 429) {
+      const data = await response.json() as any;
+      const retryAfter = data.parameters?.retry_after || 30;
+      console.warn(`⚠️ Telegram rate limit hit. Retry after ${retryAfter}s`);
+      return { success: false, retryAfter };
+    }
+
     if (!response.ok) {
       const errText = await response.text();
       console.error(`Telegram API Error: ${response.status} - ${errText}`);
-      return false;
+      return { success: false };
     }
-    return true;
+    return { success: true };
   } catch (error) {
     console.error("Failed to send Telegram message", error);
-    return false;
+    return { success: false };
   }
 }
 
@@ -48,11 +55,11 @@ async function main() {
   await initDb();
   console.log("🚀 Starting Notifications Service...");
 
-  // Fetch all jobs that are analyzed successfully but not notified yet
+  // Fetch all jobs that are analyzed successfully, are CS roles, but not notified yet
   const result = await db.execute(`
     SELECT id, title, company, url, yearsExperienceRequired, skillsNeeded 
     FROM jobs 
-    WHERE isAnalyzed = 1 AND isNotified = 0
+    WHERE isAnalyzed = 1 AND isCsRole = 1 AND isNotified = 0
   `);
 
   const jobs = result.rows as unknown as any[];
@@ -88,7 +95,7 @@ async function main() {
 🔗 [Apply Here](${url})
     `.trim();
 
-    const success = await sendTelegramMessage(text);
+    const { success, retryAfter } = await sendTelegramMessage(text);
 
     if (success) {
       console.log(`✅ Notified: ${title} at ${company}`);
@@ -96,8 +103,13 @@ async function main() {
         sql: "UPDATE jobs SET isNotified = 1 WHERE id = ?",
         args: [id],
       });
-      // Small pause to avoid Telegram rate limits (~30 msgs per sec limit typical for bots)
-      await new Promise((r) => setTimeout(r, 500));
+      // Small pause to avoid overcrowding the API
+      await new Promise((r) => setTimeout(r, 1000));
+    } else if (retryAfter) {
+      // Respect the rate limit and pause the loop
+      console.log(`⏳ Waiting ${retryAfter}s for rate limit...`);
+      await new Promise((r) => setTimeout(r, (retryAfter + 1) * 1000));
+      // Optional: you could retry this specific job here, but let's just let it run in the next cron to be safe
     } else {
       console.log(`❌ Failed to notify: ${title}`);
     }

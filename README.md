@@ -1,8 +1,8 @@
 # job-scraper-ts
 
-A serverless-ready Workday job scraper and AI-powered analyzer pipeline built with Bun and TypeScript.
+A serverless-ready Workday & Greenhouse job scraper and AI-powered analyzer pipeline built with Bun and TypeScript.
 
-Scrapes job listings from Workday career portals and stores them via Turso (Serverless SQLite) or locally, then uses Google Gemini (via the AI SDK) to extract structured metadata from each job description.
+Scrapes job listings from Workday and Greenhouse career portals and stores them via Turso (Serverless SQLite) or locally, then uses Google Gemini (via the AI SDK) to extract structured metadata from each job description, and finally notifies you on Telegram.
 
 ---
 
@@ -44,10 +44,11 @@ The pipeline has two independent phases:
 
 ### Phase 1 — Scrape jobs
 
-Fetches job listings from all configured Workday portals and saves descriptions to `jobs.sqlite`.
+Fetches job listings from all configured Workday and Greenhouse portals and saves descriptions to `jobs.sqlite`.
 
 ```bash
-bun run scrape
+bun run scrape      # Runs the Workday scraper
+bun run scrape:gh   # Runs the Greenhouse scraper
 ```
 
 **Optional flags:**
@@ -82,6 +83,18 @@ bun run analyze
 
 ---
 
+### Phase 3 — Notifications
+
+Sends Telegram notifications for all newly discovered and analyzed jobs that pass your CS validation criteria.
+
+```bash
+bun run notify
+```
+
+The script will batch jobs together and send them to the configured Telegram chat ID, then mark them as `isNotified = 1` in the database.
+
+---
+
 ## Database
 
 Jobs are stored via `@libsql/client`. By default, it will save locally to `jobs.sqlite` (auto-created on first run). If you set `TURSO_DATABASE_URL`, it will connect to a remote Turso serverless database making it perfect for Cron/Serverless environments like Vercel or GitHub Actions. The schema:
@@ -97,6 +110,7 @@ Jobs are stored via `@libsql/client`. By default, it will save locally to `jobs.
 | `portal` | TEXT | Portal identifier |
 | `description` | TEXT | Full job description (plain text) |
 | `isAnalyzed` | INTEGER | `0` = pending, `1` = done, `-1` = failed |
+| `isNotified` | INTEGER | `0` = pending, `1` = notified |
 | `yearsExperienceRequired` | INTEGER | Extracted by AI |
 | `isCsRole` | INTEGER | `1` if CS/IT/Data role (boolean, extracted by AI) |
 | `skillsNeeded` | TEXT | JSON array of skills (extracted by AI) |
@@ -109,12 +123,16 @@ Jobs are stored via `@libsql/client`. By default, it will save locally to `jobs.
 ```
 job-scraper-ts/
 ├── src/
-│   ├── scraper.ts      # Phase 1: Workday portal scraper
-│   ├── analyzer.ts     # Phase 2: AI metadata extractor
-│   ├── details.ts      # Job description fetcher (JSON-LD + regex fallback)
-│   ├── db.ts           # SQLite database init & shared connection
-│   └── urls.ts         # List of Workday portal URLs to scrape
-├── .env                # API keys (not committed)
+│   ├── workday_scraper.ts    # Phase 1: Workday portal scraper
+│   ├── greenhouse_scraper.ts # Phase 1: Greenhouse portal scraper
+│   ├── analyzer.ts           # Phase 2: AI metadata extractor
+│   ├── notify.ts             # Phase 3: Telegram bot notifier
+│   ├── details.ts            # Job description fetcher (JSON-LD + regex fallback)
+│   ├── db.ts                 # SQLite database init & shared connection
+│   ├── workday_urls.ts       # List of Workday portals
+│   └── greenhouse_urls.ts    # List of Greenhouse portals
+├── .github/workflows/cron.yml # Automated CI pipeline 
+├── .env                      # API keys (not committed)
 ├── package.json
 └── tsconfig.json
 ```

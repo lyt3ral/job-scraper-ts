@@ -1,7 +1,7 @@
 import { db, initDb } from "./db";
 import { fetchWorkdayJobDetails } from "./details";
 import { createId } from "@paralleldrive/cuid2";
-import { WORKDAY_URLS } from "./urls";
+import { WORKDAY_URLS } from "./workday_urls";
 import Bottleneck from "bottleneck";
 
 const args = process.argv.slice(2);

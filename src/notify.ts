@@ -68,50 +68,51 @@ async function main() {
 
   if (jobs.length === 0) return;
 
-  for (const job of jobs) {
-    const { id, title, company, url, yearsExperienceRequired, skillsNeeded } = job;
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
+    const chunk = jobs.slice(i, i + BATCH_SIZE);
+    let consolidatedMessage = `🚀 *New Jobs Batch (${i / BATCH_SIZE + 1})* 🚀\n\n`;
 
-    // Parse array string safely
-    let skillsStr = "Not specified";
-    try {
-      const skills = JSON.parse(skillsNeeded);
-      if (Array.isArray(skills) && skills.length > 0) {
-        skillsStr = skills.slice(0, 5).join(", ");
-      }
-    } catch (e) {}
+    for (const job of chunk) {
+      const { title, company, url, yearsExperienceRequired, skillsNeeded } = job;
 
-    const expText = yearsExperienceRequired !== null 
-        ? `${yearsExperienceRequired} Years` 
-        : "Not specified";
+      let skillsStr = "Not specified";
+      try {
+        const skills = JSON.parse(skillsNeeded);
+        if (Array.isArray(skills) && skills.length > 0) {
+          skillsStr = skills.slice(0, 3).join(", "); // Reduced to 3 for brevity in batching
+        }
+      } catch (e) {}
 
-    const text = `
-💼 *New Job Found* 💼
+      const expText = yearsExperienceRequired !== null 
+          ? `${yearsExperienceRequired} Years` 
+          : "Not specified";
 
-🏢 *Company:* ${escapeMarkdownV2(company)}
-📌 *Title:* ${escapeMarkdownV2(title)}
-⏳ *Experience:* ${escapeMarkdownV2(String(expText))}
-🛠 *Skills:* ${escapeMarkdownV2(skillsStr)}
+      consolidatedMessage += `🏢 *${escapeMarkdownV2(company)}* \\- [${escapeMarkdownV2(title)}](${url})\n`;
+      consolidatedMessage += `⏳ Exp: ${escapeMarkdownV2(String(expText))} | 🛠 ${escapeMarkdownV2(skillsStr)}\n\n`;
+    }
 
-🔗 [Apply Here](${url})
-    `.trim();
-
-    const { success, retryAfter } = await sendTelegramMessage(text);
+    const { success, retryAfter } = await sendTelegramMessage(consolidatedMessage.trim());
 
     if (success) {
-      console.log(`✅ Notified: ${title} at ${company}`);
-      await db.execute({
-        sql: "UPDATE jobs SET isNotified = 1 WHERE id = ?",
-        args: [id],
-      });
-      // Small pause to avoid overcrowding the API
-      await new Promise((r) => setTimeout(r, 1000));
+      console.log(`✅ Notified batch of ${chunk.length} jobs.`);
+      const ids = chunk.map(j => j.id);
+      // Update all IDs in this batch as notified
+      for (const id of ids) {
+        await db.execute({
+          sql: "UPDATE jobs SET isNotified = 1 WHERE id = ?",
+          args: [id],
+        });
+      }
+      // Small pause between batches
+      await new Promise((r) => setTimeout(r, 2000));
     } else if (retryAfter) {
-      // Respect the rate limit and pause the loop
       console.log(`⏳ Waiting ${retryAfter}s for rate limit...`);
       await new Promise((r) => setTimeout(r, (retryAfter + 1) * 1000));
-      // Optional: you could retry this specific job here, but let's just let it run in the next cron to be safe
+      // Re-try this batch index is not implemented for simplicity, it will be picked up next run.
+      i -= BATCH_SIZE; 
     } else {
-      console.log(`❌ Failed to notify: ${title}`);
+      console.log(`❌ Failed to notify batch starting at index ${i}`);
     }
   }
 

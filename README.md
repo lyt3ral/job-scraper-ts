@@ -51,22 +51,30 @@ bun run scrape      # Runs the Workday scraper
 bun run scrape:gh   # Runs the Greenhouse scraper
 ```
 
-**Optional flags:**
+**Optional flags (Workday):**
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-search <text>` | `Software Engineer` | Job title keyword to search |
-| `-country <code>` | *(none)* | Filter by country (e.g. `IN` for India) |
+| `-location <text>` | `India` | Filter by location text (e.g. `Bengaluru`, `Remote`) |
 | `-posted <filter>` | `all` | Filter by posting age: `today`, `yesterday`, `3` (days), `30+`, or `all` |
+
+**Optional flags (Greenhouse):**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-search <text>` | `Software Engineer` | Job title keyword |
+| `-location <text>` | *(none)* | Filter by office city or country |
+| `-days <number>` | `0` | Only fetch jobs updated within N days |
 
 **Examples:**
 
 ```bash
-# Search for data engineers in India posted in the last 3 days
-bun run scrape -- -search "Data Engineer" -country IN -posted 3
+# Search for data engineers in India (Workday)
+bun run scrape -- -search "Data Engineer" -location "India" -posted 3
 
-# Search for all software engineer roles posted today
-bun run scrape -- -search "Software Engineer" -posted today
+# Search for software engineers in Bengaluru (Greenhouse)
+bun run scrape:gh -- -search "Software Engineer" -location "Bengaluru" -days 7
 ```
 
 ---

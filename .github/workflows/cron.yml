@@ -23,11 +23,17 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run Scraper
+      - name: Run Workday Scraper
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-        run: bun run scrape -search "Software Engineer" -country IN -posted "1"
+        run: bun run scrape -search "software" -posted "1"
+
+      - name: Run Greenhouse Scraper
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: bun run scrape:gh -search "Software Engineer" -location "India" -days 1
 
       - name: Run AI Analyzer
         env:

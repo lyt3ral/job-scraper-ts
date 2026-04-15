@@ -32,4 +32,18 @@ export const WORKDAY_URLS = [
   "https://ciena.wd5.myworkdayjobs.com/Careers",
   "https://wd1.myworkdaysite.com/recruiting/fmr/FidelityCareers",
   "https://wd1.myworkdaysite.com/recruiting/wf/WellsFargoJobs",
+  "https://ea.wd5.myworkdayjobs.com/ext",
+  "https://paypal.wd1.myworkdayjobs.com/jobs",
+  "https://qualcomm.wd5.myworkdayjobs.com/External",
+  "https://visa.wd1.myworkdayjobs.com/visa",
+  "https://mastercard.wd1.myworkdayjobs.com/CorporateCareers",
+  "https://target.wd5.myworkdayjobs.com/targetcareers",
+  "https://broadcom.wd1.myworkdayjobs.com/External_Career",
+  "https://salesforce.wd1.myworkdayjobs.com/External_Career_Site",
+  "https://servicenow.wd5.myworkdayjobs.com/ServiceNow_Careers",
+  "https://intuit.wd1.myworkdayjobs.com/Intuit",
+  "https://paloaltonetworks.wd1.myworkdayjobs.com/PaloAltoNetworks",
+  "https://cisco.wd1.myworkdayjobs.com/Global_Careers",
+  "https://appdynamics.wd1.myworkdayjobs.com/AppDynamics",
+  "https://hp.wd5.myworkdayjobs.com/ExternalCareerSite"
 ];

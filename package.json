@@ -8,6 +8,7 @@
     "bun",
     "scraper",
     "workday",
+    "greenhouse",
     "ai",
     "gemini",
     "turso",
@@ -15,7 +16,7 @@
     "cron"
   ],
   "scripts": {
-    "scrape": "bun run src/scraper.ts",
+    "scrape": "bun run src/workday_scraper.ts",
     "scrape:gh": "bun run src/greenhouse_scraper.ts",
     "analyze": "bun run src/analyzer.ts",
     "notify": "bun run src/notify.ts"

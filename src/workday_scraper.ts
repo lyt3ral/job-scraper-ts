@@ -7,13 +7,14 @@ import Bottleneck from "bottleneck";
 const args = process.argv.slice(2);
 let SEARCH_TEXT = "Software Engineer";
 let COUNTRY = "";
+let LOCATION_FILTER = "India"; // Default to India as requested
 let POSTED_FILTER = "all";
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "-search" && args[i + 1]) {
     SEARCH_TEXT = args[++i];
-  } else if (args[i] === "-country" && args[i + 1]) {
-    COUNTRY = args[++i];
+  } else if (args[i] === "-location" && args[i + 1]) {
+    LOCATION_FILTER = args[++i];
   } else if (args[i] === "-posted" && args[i + 1]) {
     POSTED_FILTER = args[++i];
   }
@@ -90,6 +91,20 @@ function matchesFilter(postedOn: string, filter: string): boolean {
   return postedLower === normalizedFilter || postedLower.includes(normalizedFilter + " ");
 }
 
+function matchesLocation(locationText: string, filter: string): boolean {
+  if (!filter) return true;
+  if (filter.toLowerCase() === "india") {
+    const lowLoc = locationText.toLowerCase();
+    return lowLoc.includes("india") ||
+           lowLoc.includes("bengaluru") || lowLoc.includes("bangalore") ||
+           lowLoc.includes("pune") || lowLoc.includes("mumbai") ||
+           lowLoc.includes("hyderabad") || lowLoc.includes("chennai") ||
+           lowLoc.includes("gurgaon") || lowLoc.includes("noida") ||
+           lowLoc.includes("ind "); // catch "IND "
+  }
+  return locationText.toLowerCase().includes(filter.toLowerCase());
+}
+
 async function scrapePortal(portalURL: string) {
   const parsed = parseWorkdayURL(portalURL);
   if (!parsed) {
@@ -110,10 +125,9 @@ async function scrapePortal(portalURL: string) {
   let totalSkippedDuplicate = 0;
   let totalSkippedNoDesc = 0;
   let totalAPIRequests = 0;
-  let activeFilter = COUNTRY ? "locationCountry" : "none";
 
   log(portalTag, `Starting scrape — API: ${baseUrl}`);
-  if (COUNTRY) log(portalTag, `Country filter: ${COUNTRY} (using "${activeFilter}")`);
+  if (LOCATION_FILTER) log(portalTag, `Location filter: "${LOCATION_FILTER}"`);
   if (POSTED_FILTER !== "all") log(portalTag, `Date filter: "${POSTED_FILTER}"`);
 
   while (true) {
@@ -124,45 +138,17 @@ async function scrapePortal(portalURL: string) {
       appliedFacets: {},
     };
 
-    if (COUNTRY) {
-      payload.appliedFacets[activeFilter] = [COUNTRY];
-    }
-
     const headers = {
       "Content-Type": "application/json",
       "Accept": "application/json",
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     };
 
-    log(portalTag, `Fetching batch — offset: ${offset}, filter: "${activeFilter || "none"}"`);
+    log(portalTag, `Fetching batch — offset: ${offset}`);
 
     try {
       let resp = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify(payload) });
       totalAPIRequests++;
-
-      // Handle 400 / 422 — try fallback filters
-      if ((resp.status === 400 || resp.status === 422) && COUNTRY) {
-        warn(portalTag, `HTTP ${resp.status} with filter "${activeFilter}". Trying 'Location_Country'...`);
-        activeFilter = "Location_Country";
-        payload.appliedFacets = { Location_Country: [COUNTRY] };
-        resp = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify(payload) });
-        totalAPIRequests++;
-
-        if (resp.status === 400 || resp.status === 422) {
-          warn(portalTag, `HTTP ${resp.status} with 'Location_Country'. Trying 'locationHierarchy1'...`);
-          activeFilter = "locationHierarchy1";
-          payload.appliedFacets = { locationHierarchy1: [COUNTRY] };
-          resp = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify(payload) });
-          totalAPIRequests++;
-        }
-
-        if (resp.status === 400 || resp.status === 422) {
-          error(portalTag, `All 3 location filter variants failed (HTTP ${resp.status}). Skipping portal.`);
-          break;
-        }
-
-        log(portalTag, `Filter fallback succeeded — now using "${activeFilter}"`);
-      }
 
       if (!resp.ok) {
         const errText = await resp.text();
@@ -216,25 +202,11 @@ async function scrapePortal(portalURL: string) {
           continue;
         }
 
-        // Country location verification
-        if (COUNTRY && (COUNTRY === "c4f78be1a8f14da0ab49ce1162348a5e" || COUNTRY === "IN")) {
-          const lowLoc = location.toLowerCase();
-          const isActuallyIndia = lowLoc.includes("india") ||
-            lowLoc.includes("bengaluru") || lowLoc.includes("bangalore") ||
-            lowLoc.includes("pune") || lowLoc.includes("mumbai") ||
-            lowLoc.includes("hyderabad") || lowLoc.includes("chennai") ||
-            lowLoc.includes("gurgaon") || lowLoc.includes("noida");
-
-          if (!isActuallyIndia) {
-            const isObviouslyForeign = lowLoc.includes("usa") ||
-              lowLoc.includes("united states") || !!location.match(/\b[A-Z]{2}\b/);
-            if (isObviouslyForeign) {
-              log(portalTag, `  → SKIP (country mismatch): "${location}" looks non-Indian`);
-              totalSkippedCountry++;
-              continue;
-            }
-            warn(portalTag, `  → AMBIGUOUS location: "${location}" — allowing through`);
-          }
+        // Location text filter
+        if (!matchesLocation(location, LOCATION_FILTER)) {
+          log(portalTag, `  → SKIP (location mismatch): "${location}" does not match "${LOCATION_FILTER}"`);
+          totalSkippedCountry++;
+          continue;
         }
 
         // Duplicate check against DB
@@ -308,7 +280,7 @@ async function main() {
   console.log(`  Workday Scraper`);
   console.log(`${"═".repeat(60)}`);
   console.log(`  Search   : ${SEARCH_TEXT}`);
-  console.log(`  Country  : ${COUNTRY || "(none)"}`);
+  console.log(`  Location : ${LOCATION_FILTER || "(none)"}`);
   console.log(`  Posted   : ${POSTED_FILTER}`);
   console.log(`  Portals  : ${WORKDAY_URLS.length}`);
   console.log(`  Concurrency: ${5} portals at once, ${BATCH_SIZE} jobs/batch`);

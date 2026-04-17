@@ -2,19 +2,16 @@
   "name": "job-scraper-ts",
   "type": "module",
   "private": true,
-  "description": "A serverless-ready AI job scraper using Bun, Gemini, and Turso",
+  "description": "Workday, Greenhouse & Lever job scraper with AI analysis and Telegram notifications",
   "keywords": [
-    "typescript",
-    "bun",
-    "scraper",
+    "job-scraper",
     "workday",
     "greenhouse",
     "lever",
-    "ai",
     "gemini",
     "turso",
-    "serverless",
-    "cron"
+    "bun",
+    "typescript"
   ],
   "scripts": {
     "scrape": "bun run src/workday_scraper.ts",

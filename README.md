@@ -1,177 +1,139 @@
 # job-scraper-ts
 
-A serverless-ready Workday & Greenhouse job scraper and AI-powered analyzer pipeline built with Bun and TypeScript.
+A serverless-ready job scraper and AI analysis pipeline built with Bun and TypeScript.
 
-Scrapes job listings from Workday and Greenhouse career portals and stores them via Turso (Serverless SQLite) or locally, then uses Google Gemini (via the AI SDK) to extract structured metadata from each job description, and finally notifies you on Telegram.
+Scrapes listings from **Workday**, **Greenhouse**, and **Lever** portals, stores them in Turso (serverless SQLite), runs each description through Google Gemini to extract structured metadata, then notifies you on Telegram.
 
 ---
 
 ## Requirements
 
 - [Bun](https://bun.sh) v1.2+
-- A Google Gemini API key (free tier works)
+- Google Gemini API key — [get one free](https://aistudio.google.com/app/apikey)
+- Turso database — [get one free](https://turso.tech)
+- Telegram bot + chat ID (for notifications)
 
 ---
 
 ## Setup
 
-**1. Install dependencies**
-
 ```bash
 bun install
 ```
 
-**2. Configure environment**
+Create a `.env` file:
 
-Copy or create a `.env` file in the project root:
-
-```bash
-GOOGLE_GENERATIVE_AI_API_KEY="your-gemini-key-here"
-
-# (Optional) For remote Turso DB. Defaults to local "file:jobs.sqlite"
-TURSO_DATABASE_URL="libsql://your-db-name.turso.io"
-TURSO_AUTH_TOKEN="your-turso-token"
+```env
+GOOGLE_GENERATIVE_AI_API_KEY="..."
+TURSO_DATABASE_URL="libsql://your-db.turso.io"
+TURSO_AUTH_TOKEN="..."
+TELEGRAM_BOT_TOKEN="..."
+TELEGRAM_CHAT_ID="..."
 ```
-
-> Get a free Gemini key at https://aistudio.google.com/app/apikey
-> Get a free Turso serverless database at https://turso.tech
 
 ---
 
 ## Usage
 
-The pipeline has two independent phases:
-
-### Phase 1 — Scrape jobs
-
-Fetches job listings from all configured Workday and Greenhouse portals and saves descriptions to `jobs.sqlite`.
+### Scrape
 
 ```bash
-bun run scrape      # Runs the Workday scraper
-bun run scrape:gh   # Runs the Greenhouse scraper
+bun run scrape      # Workday
+bun run scrape:gh   # Greenhouse
+bun run scrape:lv   # Lever
 ```
 
-**Optional flags (Workday):**
+All scrapers accept the same flags:
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-search <text>` | `Software Engineer` | Job title keyword to search |
-| `-location <text>` | `India` | Filter by location text (e.g. `Bengaluru`, `Remote`) |
-| `-posted <filter>` | `all` | Filter by posting age: `today`, `yesterday`, `3` (days), `30+`, or `all` |
+| Flag | Description |
+|------|-------------|
+| `-search <text>` | Job title keyword (default: `software`) |
+| `-location <text>` | Location filter — e.g. `India`, `Bengaluru` |
+| `-days <n>` | Only jobs posted within the last N days (`0` = all) |
 
-**Optional flags (Greenhouse):**
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-search <text>` | `Software Engineer` | Job title keyword |
-| `-location <text>` | *(none)* | Filter by office city or country |
-| `-days <number>` | `0` | Only fetch jobs updated within N days |
-
-**Examples:**
+> Workday uses `-posted` instead of `-days`: `today`, `yesterday`, `3`, `30+`, or `all`
 
 ```bash
-# Search for data engineers in India (Workday)
-bun run scrape -- -search "Data Engineer" -location "India" -posted 3
-
-# Search for software engineers in Bengaluru (Greenhouse)
-bun run scrape:gh -- -search "Software Engineer" -location "Bengaluru" -days 7
+bun run scrape:lv -search "software" -location "India" -days 1
 ```
 
----
+### Analyze
 
-### Phase 2 — Analyze jobs
-
-Runs all unanalyzed jobs through `gemma-3-27b-it` to extract structured metadata (skills, experience level, qualifications, etc.) and saves results back to the DB.
+Runs unanalyzed jobs through Gemini to extract skills, YoE, CS role flag, etc.
 
 ```bash
 bun run analyze
 ```
 
-> The analyzer is rate-limited to respect Gemini free tier limits (30 RPM / 15K TPM). It runs sequentially with a ~3.5s gap between requests. It is safe to stop and resume — it picks up from where it left off.
+### Notify
+
+Sends Telegram messages for newly analyzed jobs that pass filters.
+
+```bash
+bun run notify             # default: max-yoe 2 (junior/entry focus)
+bun run notify -- -max-yoe 10  # senior roles
+```
 
 ---
 
-### Phase 3 — Notifications
+## Automation
 
-Sends Telegram notifications for all newly discovered and analyzed jobs that pass your CS validation criteria.
+The pipeline runs daily via GitHub Actions (`.github/workflows/cron.yml`). Each stage can be toggled independently when triggering manually:
 
-```bash
-bun run notify
-```
-
-**Optional flags:**
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-max-yoe <number>` | `2` | Only notify jobs requiring N years or less (includes null) |
-
-**Example:**
-
-```bash
-# Only notify for senior roles (5+ years)
-bun run notify -- -max-yoe 10
-
-# Default (entry-level / junior focus)
-bun run notify
-```
-
-The script will batch jobs together and send them as consolidated HTML messages to the configured Telegram chat ID, then mark them as `isNotified = 1` in the database.
-
----
-
-## Database
-
-Jobs are stored via `@libsql/client`. By default, it will save locally to `jobs.sqlite` (auto-created on first run). If you set `TURSO_DATABASE_URL`, it will connect to a remote Turso serverless database making it perfect for Cron/Serverless environments like Vercel or GitHub Actions. The schema:
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | TEXT | CUID2 primary key |
-| `title` | TEXT | Job title |
-| `location` | TEXT | Location string from portal |
-| `url` | TEXT | Unique job URL |
-| `postedOn` | TEXT | Human-readable posting age (e.g. "Posted 2 days ago") |
-| `company` | TEXT | Company derived from portal URL |
-| `portal` | TEXT | Portal identifier |
-| `description` | TEXT | Full job description (plain text) |
-| `isAnalyzed` | INTEGER | `0` = pending, `1` = done, `-1` = failed |
-| `isNotified` | INTEGER | `0` = pending, `1` = notified |
-| `yearsExperienceRequired` | INTEGER | Extracted by AI |
-| `isCsRole` | INTEGER | `1` if CS/IT/Data role (boolean, extracted by AI) |
-| `skillsNeeded` | TEXT | JSON array of skills (extracted by AI) |
-| `qualifications` | TEXT | JSON array of qualifications (extracted by AI) |
+- **Workday** — on/off
+- **Greenhouse** — on/off
+- **Lever** — on/off
+- **Analyze** — on/off
+- **Notify** — on/off
 
 ---
 
 ## Project Structure
 
 ```
-job-scraper-ts/
-├── src/
-│   ├── workday_scraper.ts    # Phase 1: Workday portal scraper
-│   ├── greenhouse_scraper.ts # Phase 1: Greenhouse portal scraper
-│   ├── analyzer.ts           # Phase 2: AI metadata extractor
-│   ├── notify.ts             # Phase 3: Telegram bot notifier
-│   ├── details.ts            # Job description fetcher (JSON-LD + regex fallback)
-│   ├── db.ts                 # SQLite database init & shared connection
-│   ├── workday_urls.ts       # List of Workday portals
-│   └── greenhouse_urls.ts    # List of Greenhouse portals
-├── .github/workflows/cron.yml # Automated CI pipeline 
-├── .env                      # API keys (not committed)
-├── package.json
-└── tsconfig.json
+src/
+├── workday_scraper.ts     # Workday scraper
+├── greenhouse_scraper.ts  # Greenhouse scraper
+├── lever_scraper.ts       # Lever scraper
+├── analyzer.ts            # Gemini AI metadata extractor
+├── notify.ts              # Telegram notifier
+├── details.ts             # Job description fetcher
+├── db.ts                  # DB init & shared connection
+├── workday_urls.ts        # Workday portal list
+├── greenhouse_urls.ts     # Greenhouse board list
+└── lever_urls.ts          # Lever company list
 ```
+
+---
+
+## Database Schema
+
+| Column | Description |
+|--------|-------------|
+| `id` | CUID2 primary key |
+| `title` | Job title |
+| `location` | Location from portal |
+| `url` | Unique job URL |
+| `postedOn` | Posting date/age |
+| `company` | Company name |
+| `portal` | `workday` / `greenhouse` / `lever` |
+| `description` | Full plain-text description |
+| `isAnalyzed` | `0` pending · `1` done · `-1` failed |
+| `isNotified` | `0` pending · `1` sent |
+| `yearsExperienceRequired` | Extracted by AI |
+| `isCsRole` | `1` if CS/IT/Data role |
+| `skillsNeeded` | JSON array of skills |
+| `qualifications` | JSON array of qualifications |
 
 ---
 
 ## Tech Stack
 
-- **Runtime**: [Bun](https://bun.sh)
-- **Language**: TypeScript
-- **Database**: Turso SQLite via `@libsql/client` (Remote or Local)
-- **HTTP scraping**: Bun's built-in `fetch` + [jsdom](https://github.com/jsdom/jsdom)
-- **AI analysis**: [Vercel AI SDK](https://sdk.vercel.ai/) + `@ai-sdk/google` (Gemma 3 27B)
-- **Rate limiting**: [Bottleneck](https://github.com/SGrondin/bottleneck)
-
----
-
-This project was created using `bun init` in Bun v1.2.18.
+| | |
+|--|--|
+| Runtime | [Bun](https://bun.sh) |
+| Language | TypeScript |
+| Database | [Turso](https://turso.tech) via `@libsql/client` |
+| AI | Gemini (`gemma-3-27b-it`) via `@ai-sdk/google` |
+| Rate limiting | [Bottleneck](https://github.com/SGrondin/bottleneck) |
+| HTML parsing | [jsdom](https://github.com/jsdom/jsdom) |

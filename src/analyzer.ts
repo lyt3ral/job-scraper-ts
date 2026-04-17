@@ -53,20 +53,31 @@ async function analyzeJob(
 ): Promise<boolean> {
   const maxRetries = 3;
 
-  const prompt = `You are a strict data extractor. Analyze the following job description and return ONLY raw JSON matching this format:
-{"yearsExperienceRequired": 5, "isCsRole": true, "skillsNeeded": ["React", "Node.js"], "qualifications": ["Bachelor's degree in Computer Science"]}
+  const prompt = `You are an expert recruitment data analyst. Analyze the following job description to extract structured requirements.
 
-Rules:
-- \`yearsExperienceRequired\`: number | null
-- \`isCsRole\`: boolean (true if highly related to Computer Science, IT, Data, etc.)
-- \`skillsNeeded\`: array of strings (e.g., ["Python", "AWS", "Agile"])
-- \`qualifications\`: array of strings (e.g., ["BSc Computer Science", "AWS Certified"])
-- DO NOT wrap the output in markdown json blocks.
-- Output ONLY the raw JSON string.
+Return ONLY a raw JSON object with this exact structure:
+{
+  "yearsExperienceRequired": number | null,
+  "isCsRole": boolean,
+  "skillsNeeded": string[],
+  "qualifications": string[]
+}
+
+Rules for Extraction:
+1. "yearsExperienceRequired": 
+   - Search for minimum years of experience (e.g., "5+ years", "at least 3 years", "minimum of 8 years").
+   - If a range is given (e.g., "3-5 years"), return the lower number (3).
+   - If multiple experience levels are mentioned for different skills, return the primary/highest minimum requirement.
+   - Return null ONLY if no numerical year requirement is mentioned.
+2. "isCsRole": Set to true if the role is primarily in Software Engineering, Data Science, IT Infrastructure, Cybersecurity, or related technical fields.
+3. "skillsNeeded": Extract up to 10 key technical or soft skills mentioned.
+4. "qualifications": Extract formal education or certifications (e.g., "Bachelor's degree", "AWS Certified").
+
+Strictly output ONLY the raw JSON string. Do not include markdown formatting or extra text.
 
 Job Title: ${job.title}
 Description:
-${job.description.slice(0, 3000)}`;
+${job.description.slice(0, 5000)}`;
 
   try {
     const { text } = await generateText({ model, prompt });

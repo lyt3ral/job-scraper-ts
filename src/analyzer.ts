@@ -21,7 +21,7 @@ const config = {
   RPM: 30,
   RPD: 14400,
   batchSize: 1, // Moving back to 1 for stability since RPD is essentially unlimited
-  minTimeBetweenMs: 3_500, // Roughly keeps us well under the 15k TPM limit given ~800 tokens per job
+  minTimeBetweenMs: 5_000, // Increased to 5s to stay under 15k TPM with the larger 5,000 char context window
 };
 
 const google = createGoogleGenerativeAI({

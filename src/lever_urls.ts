@@ -7,6 +7,8 @@ export const LEVER_BOARDS = [
   { slug: "meesho",            company: "Meesho" },
   { slug: "zeta",              company: "Zeta" },
   { slug: "mindtickle",        company: "MindTickle" },
+  { slug: "dozee",             company: "Dozee" },
+  { slug: "fi",                company: "Fi Money" },
 
   // ─── Global Tech (with India presence) ─────────────────────────────────────────
   { slug: "spotify",           company: "Spotify" },
@@ -15,4 +17,9 @@ export const LEVER_BOARDS = [
   { slug: "toptal",            company: "Toptal" },
   { slug: "goodleap",          company: "GoodLeap" },
   { slug: "peoplegrove",       company: "PeopleGrove" },
+  { slug: "dnb",               company: "Dun and Bradstreet" },
+  { slug: "zoox",              company: "Zoox" },
+  { slug: "shieldai",          company: "Shield AI" },
+  { slug: "binance",           company: "Binance" },
+  { slug: "farfetch",          company: "Farfetch" },
 ];

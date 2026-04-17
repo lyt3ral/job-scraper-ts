@@ -48,6 +48,13 @@ jobs:
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: bun run scrape:gh -search "Software Engineer" -location "India" -days 1
 
+      - name: Run Lever Scraper
+        if: github.event.inputs.phase == 'all' || github.event.inputs.phase == 'scrape' || github.event_name == 'schedule'
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: bun run scrape:lv -search "software" -location "India" -days 1
+
       - name: Run AI Analyzer
         if: github.event.inputs.phase == 'all' || github.event.inputs.phase == 'analyze' || github.event_name == 'schedule'
         env:

@@ -55,16 +55,32 @@ async function sendTelegramMessage(message: string): Promise<{ success: boolean;
   }
 }
 
+const args = process.argv.slice(2);
+let MAX_YOE = 2; // Default to 2 years or less
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === "-max-yoe" && args[i + 1]) {
+    MAX_YOE = parseInt(args[++i]);
+  }
+}
+
 async function main() {
   await initDb();
   console.log("🚀 Starting Notifications Service...");
+  console.log(`   Filter: CS Roles with <= ${MAX_YOE} years experience (or not specified)`);
 
   // Fetch all jobs that are analyzed successfully, are CS roles, but not notified yet
-  const result = await db.execute(`
+  const result = await db.execute({
+    sql: `
     SELECT id, title, company, url, yearsExperienceRequired, skillsNeeded 
     FROM jobs 
-    WHERE isAnalyzed = 1 AND isCsRole = 1 AND isNotified = 0
-  `);
+    WHERE isAnalyzed = 1 
+      AND isCsRole = 1 
+      AND isNotified = 0
+      AND (yearsExperienceRequired <= ? OR yearsExperienceRequired IS NULL)
+    `,
+    args: [MAX_YOE]
+  });
 
   const jobs = result.rows as unknown as any[];
 

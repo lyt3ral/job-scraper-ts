@@ -99,7 +99,23 @@ Sends Telegram notifications for all newly discovered and analyzed jobs that pas
 bun run notify
 ```
 
-The script will batch jobs together and send them to the configured Telegram chat ID, then mark them as `isNotified = 1` in the database.
+**Optional flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-max-yoe <number>` | `2` | Only notify jobs requiring N years or less (includes null) |
+
+**Example:**
+
+```bash
+# Only notify for senior roles (5+ years)
+bun run notify -- -max-yoe 10
+
+# Default (entry-level / junior focus)
+bun run notify
+```
+
+The script will batch jobs together and send them as consolidated HTML messages to the configured Telegram chat ID, then mark them as `isNotified = 1` in the database.
 
 ---
 

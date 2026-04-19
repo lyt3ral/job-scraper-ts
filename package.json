@@ -2,12 +2,13 @@
   "name": "job-scraper-ts",
   "type": "module",
   "private": true,
-  "description": "Workday, Greenhouse & Lever job scraper with AI analysis and Telegram notifications",
+  "description": "Workday, Greenhouse, Lever & Ashby job scraper with AI analysis and Telegram notifications",
   "keywords": [
     "job-scraper",
     "workday",
     "greenhouse",
     "lever",
+    "ashby",
     "gemini",
     "turso",
     "bun",
@@ -17,6 +18,7 @@
     "scrape": "bun run src/workday_scraper.ts",
     "scrape:gh": "bun run src/greenhouse_scraper.ts",
     "scrape:lv": "bun run src/lever_scraper.ts",
+    "scrape:as": "bun run src/ashby_scraper.ts",
     "analyze": "bun run src/analyzer.ts",
     "notify": "bun run src/notify.ts"
   },

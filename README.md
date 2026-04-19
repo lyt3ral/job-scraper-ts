@@ -2,7 +2,7 @@
 
 A serverless-ready job scraper and AI analysis pipeline built with Bun and TypeScript.
 
-Scrapes listings from **Workday**, **Greenhouse**, and **Lever** portals, stores them in Turso (serverless SQLite), runs each description through Google Gemini to extract structured metadata, then notifies you on Telegram.
+Scrapes listings from **Workday**, **Greenhouse**, **Lever**, and **Ashby** portals, stores them in Turso (serverless SQLite), runs each description through Google Gemini to extract structured metadata, then notifies you on Telegram.
 
 ---
 
@@ -41,6 +41,7 @@ TELEGRAM_CHAT_ID="..."
 bun run scrape      # Workday
 bun run scrape:gh   # Greenhouse
 bun run scrape:lv   # Lever
+bun run scrape:as   # Ashby
 ```
 
 All scrapers accept the same flags:
@@ -83,6 +84,7 @@ The pipeline runs daily via GitHub Actions (`.github/workflows/cron.yml`). Each 
 - **Workday** — on/off
 - **Greenhouse** — on/off
 - **Lever** — on/off
+- **Ashby** — on/off
 - **Analyze** — on/off
 - **Notify** — on/off
 
@@ -95,13 +97,15 @@ src/
 ├── workday_scraper.ts     # Workday scraper
 ├── greenhouse_scraper.ts  # Greenhouse scraper
 ├── lever_scraper.ts       # Lever scraper
+├── ashby_scraper.ts       # Ashby scraper
 ├── analyzer.ts            # Gemini AI metadata extractor
 ├── notify.ts              # Telegram notifier
 ├── details.ts             # Job description fetcher
 ├── db.ts                  # DB init & shared connection
 ├── workday_urls.ts        # Workday portal list
 ├── greenhouse_urls.ts     # Greenhouse board list
-└── lever_urls.ts          # Lever company list
+├── lever_urls.ts          # Lever company list
+└── ashby_urls.ts          # Ashby board list
 ```
 
 ---
@@ -116,7 +120,7 @@ src/
 | `url` | Unique job URL |
 | `postedOn` | Posting date/age |
 | `company` | Company name |
-| `portal` | `workday` / `greenhouse` / `lever` |
+| `portal` | `workday` / `greenhouse` / `lever` / `ashby` |
 | `description` | Full plain-text description |
 | `isAnalyzed` | `0` pending · `1` done · `-1` failed |
 | `isNotified` | `0` pending · `1` sent |

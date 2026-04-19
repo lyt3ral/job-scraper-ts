@@ -1,0 +1,46 @@
+export interface AshbyBoard {
+  company: string;
+  name: string; // The URL path for the company job board
+}
+
+export const ASHBY_BOARDS: AshbyBoard[] = [
+  { company: "Linear", name: "linear" },
+  { company: "Vercel", name: "vercel" },
+  { company: "Deel", name: "deel" },
+  { company: "Drata", name: "drata" },
+  { company: "PostHog", name: "posthog" },
+  { company: "Replit", name: "replit" },
+  { company: "Notion", name: "notion" },
+  { company: "Airtable", name: "airtable" },
+  { company: "Render", name: "render" },
+  { company: "Astronomer", name: "astronomer" },
+  { company: "Plaid", name: "plaid" },
+  { company: "Snowflake", name: "snowflake" },
+  { company: "Ramp", name: "ramp" },
+  { company: "Zapier", name: "zapier" },
+  { company: "YCombinator", name: "ycombinator" },
+  { company: "Baseten", name: "baseten" },
+  { company: "OpenAI", name: "openai" },
+  { company: "Reddit", name: "reddit" },
+  { company: "Atlan", name: "atlan" },
+  { company: "Oyster", name: "oyster" },
+  { company: "Andela", name: "andela" },
+  { company: "Guild", name: "guild" },
+  { company: "BetterUp", name: "betterup" },
+  { company: "Kraken", name: "kraken" },
+  { company: "Mux", name: "mux" },
+  { company: "Cohere", name: "cohere" },
+  { company: "Pinecone", name: "pinecone" },
+  { company: "Weaviate", name: "weaviate" },
+  { company: "Gorgias", name: "gorgias" },
+  { company: "Neon", name: "neon" },
+  { company: "Supabase", name: "supabase" },
+  { company: "Clerk", name: "clerk" },
+  { company: "Modal", name: "modal" },
+  { company: "Railway", name: "railway" },
+  { company: "LangChain", name: "langchain" },
+  { company: "LlamaIndex", name: "llamaindex" },
+  { company: "Wiz", name: "wiz" },
+  { company: "Snyk", name: "snyk" },
+  { company: "Orca", name: "orca" }
+];

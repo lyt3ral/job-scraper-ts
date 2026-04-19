@@ -248,7 +248,7 @@ async function scrapePortal(portalURL: string) {
             updatedAt=CURRENT_TIMESTAMP,
             postedOn=excluded.postedOn
         `,
-          args: [createId(), title, location, jobUrl, postedOn, company, portal, details.jobDescription]
+          args: [createId(), title, location, jobUrl, postedOn, company, "workday", details.jobDescription]
         });
 
         log(portalTag, `  → ✅ Saved: "${title}"`);

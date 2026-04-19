@@ -19,6 +19,10 @@ on:
         description: 'Run Lever Scraper'
         type: boolean
         default: true
+      ashby:
+        description: 'Run Ashby Scraper'
+        type: boolean
+        default: true
       analyze:
         description: 'Run AI Analyzer'
         type: boolean
@@ -64,6 +68,13 @@ jobs:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: bun run scrape:lv -search "software" -location "India" -days 1
+
+      - name: Run Ashby Scraper
+        if: github.event_name == 'schedule' || github.event.inputs.ashby == 'true'
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: bun run scrape:as -search "software" -location "India" -days 1
 
       - name: Run AI Analyzer
         if: github.event_name == 'schedule' || github.event.inputs.analyze == 'true'

@@ -15,7 +15,8 @@
     "typescript"
   ],
   "scripts": {
-    "scrape": "bun run src/workday_scraper.ts",
+    "scrape": "bun run src/scrape_all.ts",
+    "scrape:wd": "bun run src/workday_scraper.ts",
     "scrape:gh": "bun run src/greenhouse_scraper.ts",
     "scrape:lv": "bun run src/lever_scraper.ts",
     "scrape:as": "bun run src/ashby_scraper.ts",

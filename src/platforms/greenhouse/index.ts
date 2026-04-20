@@ -1,6 +1,6 @@
-import { ASHBY_BOARDS } from "./ashby_urls";
+import { GREENHOUSE_BOARDS } from "./urls";
 import Bottleneck from "bottleneck";
-import { db, initDb } from "./db";
+import { db, initDb } from "../../core/db";
 import { createId } from "@paralleldrive/cuid2";
 
 // ─── CLI Args ────────────────────────────────────────────────────────────────
@@ -22,11 +22,11 @@ for (let i = 0; i < args.length; i++) {
 // ─── Rate Limiter ────────────────────────────────────────────────────────────
 const limiter = new Bottleneck({
   maxConcurrent: 5,
-  minTime: 200, // 5 requests per second is well within 1000/min
+  minTime: 300,
 });
 
 // ─── Logging helpers ─────────────────────────────────────────────────────────
-const tag = (company: string) => `[Ashby:${company.padEnd(16).slice(0, 16)}]`;
+const tag = (company: string) => `[GH:${company.padEnd(18).slice(0, 18)}]`;
 
 function log(company: string, msg: string) {
   console.log(`${tag(company)} ${msg}`);
@@ -39,15 +39,16 @@ function error(company: string, msg: string) {
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-interface AshbyJob {
-  id: string;
+interface GreenhouseJob {
+  id: number;
   title: string;
-  publishedAt: string;
-  location: string;
-  secondaryLocations?: { location: string }[];
-  jobUrl: string;
-  descriptionPlain?: string;
-  descriptionHtml?: string;
+  updated_at: string;
+  location: { name: string };
+  absolute_url: string;
+  content?: string;        // HTML job description (only when ?content=true)
+  departments?: { id: number; name: string }[];
+  offices?: { id: number; name: string; location?: string }[];
+  metadata?: { name: string; value: any }[];
 }
 
 export interface ScrapedJob {
@@ -56,11 +57,12 @@ export interface ScrapedJob {
   url: string;
   updatedAt: string;
   company: string;
-  portal: string;       // "ashby"
+  portal: string;       // "greenhouse"
   description: string;
 }
 
 // ─── Filtering helpers ───────────────────────────────────────────────────────
+
 function matchesTitle(title: string, searchText: string): boolean {
   if (!searchText) return true;
   const keywords = searchText.toLowerCase().split(/\s+/);
@@ -68,15 +70,18 @@ function matchesTitle(title: string, searchText: string): boolean {
   return keywords.every((kw) => titleLower.includes(kw));
 }
 
-function matchesLocation(job: AshbyJob, locationFilter: string): boolean {
+function matchesLocation(job: GreenhouseJob, locationFilter: string): boolean {
   if (!locationFilter) return true;
   const filterLower = locationFilter.toLowerCase();
   
-  if (job.location?.toLowerCase().includes(filterLower)) return true;
+  // Check the top-level location.name
+  if (job.location?.name?.toLowerCase().includes(filterLower)) return true;
   
-  if (job.secondaryLocations) {
-    for (const sec of job.secondaryLocations) {
-      if (sec.location?.toLowerCase().includes(filterLower)) return true;
+  // Check all offices (much richer location data)
+  if (job.offices) {
+    for (const office of job.offices) {
+      if (office.name?.toLowerCase().includes(filterLower)) return true;
+      if (office.location?.toLowerCase().includes(filterLower)) return true;
     }
   }
   
@@ -85,7 +90,6 @@ function matchesLocation(job: AshbyJob, locationFilter: string): boolean {
 
 function matchesUpdatedWithin(updatedAt: string, withinDays: number): boolean {
   if (withinDays <= 0) return true;
-  if (!updatedAt) return true;
   const updated = new Date(updatedAt);
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - withinDays);
@@ -94,7 +98,6 @@ function matchesUpdatedWithin(updatedAt: string, withinDays: number): boolean {
 
 // ─── Strip HTML to plain text ────────────────────────────────────────────────
 function stripHtml(html: string): string {
-  if (!html) return "";
   return html
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
@@ -112,8 +115,8 @@ function stripHtml(html: string): string {
 }
 
 // ─── Scrape a single board ───────────────────────────────────────────────────
-async function scrapeBoard(name: string, company: string): Promise<ScrapedJob[]> {
-  const apiUrl = `https://api.ashbyhq.com/posting-api/job-board/${name}`;
+async function scrapeBoard(token: string, company: string): Promise<ScrapedJob[]> {
+  const apiUrl = `https://boards-api.greenhouse.io/v1/boards/${token}/jobs?content=true`;
   const results: ScrapedJob[] = [];
 
   log(company, `Fetching all jobs from API...`);
@@ -131,7 +134,7 @@ async function scrapeBoard(name: string, company: string): Promise<ScrapedJob[]>
       return results;
     }
 
-    const data = await resp.json() as { jobs: AshbyJob[] };
+    const data = await resp.json() as { jobs: GreenhouseJob[]; meta: { total: number } };
     const allJobs = data.jobs || [];
 
     log(company, `Got ${allJobs.length} total jobs from API`);
@@ -155,30 +158,27 @@ async function scrapeBoard(name: string, company: string): Promise<ScrapedJob[]>
       }
 
       // Date filter
-      if (!matchesUpdatedWithin(job.publishedAt, UPDATED_WITHIN_DAYS)) {
+      if (!matchesUpdatedWithin(job.updated_at, UPDATED_WITHIN_DAYS)) {
         skippedDate++;
         continue;
       }
 
       // Description
-      const description = job.descriptionPlain 
-        ? job.descriptionPlain.trim() 
-        : stripHtml(job.descriptionHtml || "");
-      
+      const description = job.content ? stripHtml(job.content) : "";
       if (!description) {
         skippedNoDesc++;
         continue;
       }
 
-      log(company, `  ✅ "${job.title}" | ${job.location}`);
+      log(company, `  ✅ "${job.title}" | ${job.location?.name}`);
 
       results.push({
         title: job.title,
-        location: job.location || "Not specified",
-        url: job.jobUrl,
-        updatedAt: job.publishedAt,
+        location: job.location?.name || "Not specified",
+        url: job.absolute_url,
+        updatedAt: job.updated_at,
         company,
-        portal: "ashby",
+        portal: "greenhouse",
         description,
       });
     }
@@ -191,23 +191,23 @@ async function scrapeBoard(name: string, company: string): Promise<ScrapedJob[]>
   return results;
 }
 
-// ─── Main ────────────────────────────────────────────────────────────────────
-async function main() {
+// ─── Main (scrape only — no DB saving) ───────────────────────────────────────
+export async function scrape() {
   await initDb();
   console.log(`\n${"═".repeat(60)}`);
-  console.log(`  Ashby Scraper`);
+  console.log(`  Greenhouse Scraper`);
   console.log(`${"═".repeat(60)}`);
   console.log(`  Search   : ${SEARCH_TEXT}`);
   console.log(`  Location : ${LOCATION_FILTER || "(none)"}`);
   console.log(`  Updated  : ${UPDATED_WITHIN_DAYS > 0 ? `within last ${UPDATED_WITHIN_DAYS} days` : "all"}`);
-  console.log(`  Boards   : ${ASHBY_BOARDS.length}`);
+  console.log(`  Boards   : ${GREENHOUSE_BOARDS.length}`);
   console.log(`  Concurrency: 5 boards at a time`);
   console.log(`${"═".repeat(60)}\n`);
 
   const startTime = Date.now();
 
-  const tasks = ASHBY_BOARDS.map(({ name, company }) =>
-    limiter.schedule(() => scrapeBoard(name, company))
+  const tasks = GREENHOUSE_BOARDS.map(({ token, company }) =>
+    limiter.schedule(() => scrapeBoard(token, company))
   );
 
   const allResults = await Promise.all(tasks);
@@ -215,7 +215,7 @@ async function main() {
 
   // ─── Save to DB ────────────────────────────────────────────────────────────
   if (allJobs.length > 0) {
-    console.log(`  Writing jobs to DB...`);
+    console.log(`  Writing patterns to DB...`);
     let newJobsCount = 0;
 
     for (const job of allJobs) {
@@ -244,18 +244,18 @@ async function main() {
       }
     }
     console.log(`  ✅ Added ${newJobsCount} completely new jobs to the database.`);
-  } else {
-      console.log(`  No matching jobs found across any board.`);
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
   console.log(`\n${"═".repeat(60)}`);
-  console.log(`  Ashby scraping completed in ${elapsed}s`);
+  console.log(`  Greenhouse scraping completed in ${elapsed}s`);
   console.log(`  Total matching jobs: ${allJobs.length}`);
   console.log(`${"═".repeat(60)}\n`);
 
   return allJobs;
 }
 
-main().catch(console.error);
+if (import.meta.main) {
+  scrape().catch(console.error);
+}

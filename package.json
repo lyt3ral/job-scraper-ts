@@ -15,13 +15,13 @@
     "typescript"
   ],
   "scripts": {
-    "scrape": "bun run src/scrape_all.ts",
-    "scrape:wd": "bun run src/workday_scraper.ts",
-    "scrape:gh": "bun run src/greenhouse_scraper.ts",
-    "scrape:lv": "bun run src/lever_scraper.ts",
-    "scrape:as": "bun run src/ashby_scraper.ts",
-    "analyze": "bun run src/analyzer.ts",
-    "notify": "bun run src/notify.ts"
+    "scrape": "bun run src/index.ts",
+    "scrape:wd": "bun run src/platforms/workday/index.ts",
+    "scrape:gh": "bun run src/platforms/greenhouse/index.ts",
+    "scrape:lv": "bun run src/platforms/lever/index.ts",
+    "scrape:as": "bun run src/platforms/ashby/index.ts",
+    "analyze": "bun run src/core/analyzer.ts",
+    "notify": "bun run src/core/notify.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.10",

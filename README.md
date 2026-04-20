@@ -38,10 +38,19 @@ TELEGRAM_CHAT_ID="..."
 ### Scrape
 
 ```bash
-bun run scrape      # Workday
+bun run scrape      # All platforms sequentially
+bun run scrape:wd   # Workday
 bun run scrape:gh   # Greenhouse
 bun run scrape:lv   # Lever
 bun run scrape:as   # Ashby
+```
+
+### Dry Run Mode
+
+You can run any scraper without writing to the database by setting `DRY_RUN=true`. This will skip all `INSERT`, `UPDATE`, and `DELETE` operations.
+
+```bash
+DRY_RUN=true bun run scrape:wd -search "software"
 ```
 
 All scrapers accept the same flags:
@@ -94,18 +103,18 @@ The pipeline runs daily via GitHub Actions (`.github/workflows/cron.yml`). Each 
 
 ```
 src/
-├── workday_scraper.ts     # Workday scraper
-├── greenhouse_scraper.ts  # Greenhouse scraper
-├── lever_scraper.ts       # Lever scraper
-├── ashby_scraper.ts       # Ashby scraper
-├── analyzer.ts            # Gemini AI metadata extractor
-├── notify.ts              # Telegram notifier
-├── details.ts             # Job description fetcher
-├── db.ts                  # DB init & shared connection
-├── workday_urls.ts        # Workday portal list
-├── greenhouse_urls.ts     # Greenhouse board list
-├── lever_urls.ts          # Lever company list
-└── ashby_urls.ts          # Ashby board list
+├── core/
+│   ├── analyzer.ts     # Gemini AI metadata extractor
+│   ├── db.ts           # DB init & shared connection
+│   └── notify.ts       # Telegram notifier
+│
+├── platforms/
+│   ├── ashby/          # Ashby scraper & URLs
+│   ├── greenhouse/     # Greenhouse scraper & URLs
+│   ├── lever/          # Lever scraper & URLs
+│   └── workday/        # Workday scraper, details fetcher & URLs
+│
+└── index.ts            # Unified CLI entry point for all platforms
 ```
 
 ---
@@ -140,4 +149,3 @@ src/
 | Database | [Turso](https://turso.tech) via `@libsql/client` |
 | AI | Gemini (`gemma-3-27b-it`) via `@ai-sdk/google` |
 | Rate limiting | [Bottleneck](https://github.com/SGrondin/bottleneck) |
-| HTML parsing | [jsdom](https://github.com/jsdom/jsdom) |

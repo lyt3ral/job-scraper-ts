@@ -1,7 +1,7 @@
-import { db, initDb } from "./db";
+import { db, initDb } from "../../core/db";
 import { fetchWorkdayJobDetails } from "./details";
 import { createId } from "@paralleldrive/cuid2";
-import { WORKDAY_URLS } from "./workday_urls";
+import { WORKDAY_URLS } from "./urls";
 import Bottleneck from "bottleneck";
 
 const args = process.argv.slice(2);
@@ -273,7 +273,7 @@ async function scrapePortal(portalURL: string) {
   log(portalTag, `━━━ Done ━━━ saved=${totalSaved} | api_requests=${totalAPIRequests} | skipped: date=${totalSkippedFilter} country=${totalSkippedCountry} duplicate=${totalSkippedDuplicate} no_desc=${totalSkippedNoDesc}`);
 }
 
-async function main() {
+export async function scrape() {
   await initDb();
 
   console.log(`\n${"═".repeat(60)}`);
@@ -300,4 +300,6 @@ async function main() {
   console.log(`${"═".repeat(60)}\n`);
 }
 
-main().catch(console.error);
+if (import.meta.main) {
+  scrape().catch(console.error);
+}

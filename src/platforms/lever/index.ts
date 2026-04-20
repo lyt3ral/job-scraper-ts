@@ -1,6 +1,6 @@
-import { LEVER_BOARDS } from "./lever_urls";
+import { LEVER_BOARDS } from "./urls";
 import Bottleneck from "bottleneck";
-import { db, initDb } from "./db";
+import { db, initDb } from "../../core/db";
 import { createId } from "@paralleldrive/cuid2";
 
 // ─── CLI Args ────────────────────────────────────────────────────────────────
@@ -258,7 +258,7 @@ async function scrapeBoard(slug: string, company: string): Promise<ScrapedJob[]>
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
-async function main() {
+export async function scrape() {
   await initDb();
   console.log(`\n${"═".repeat(60)}`);
   console.log(`  Lever Scraper`);
@@ -322,4 +322,6 @@ async function main() {
   return allJobs;
 }
 
-main().catch(console.error);
+if (import.meta.main) {
+  scrape().catch(console.error);
+}

@@ -88,14 +88,7 @@ bun run notify -- -max-yoe 10  # senior roles
 
 ## Automation
 
-The pipeline runs daily via GitHub Actions (`.github/workflows/cron.yml`). Each stage can be toggled independently when triggering manually:
-
-- **Workday** — on/off
-- **Greenhouse** — on/off
-- **Lever** — on/off
-- **Ashby** — on/off
-- **Analyze** — on/off
-- **Notify** — on/off
+The pipeline runs daily via GitHub Actions (`.github/workflows/cron.yml`). Each stage can be toggled independently when triggering manually
 
 ---
 
